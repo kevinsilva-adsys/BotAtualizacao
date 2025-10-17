@@ -1,27 +1,29 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Painel de Municípios</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="header">
+  <div class="container">
     <h1>Painel de Municípios</h1>
-    <div class="search-container">
-      <input type="text" id="searchInput" placeholder="Pesquisar município..." oninput="filtrarMunicipios()">
-    </div>
-    <div class="share-container">
-      <button id="shareBtn" onclick="compartilharPainel()">Compartilhar Painel</button>
-      <button id="exportBtn" onclick="exportarMunicipios()">Exportar Lista TXT</button>
-      <span id="shareFeedback"></span>
-    </div>
-  </div>
-  
-  <div id="municipios" class="municipios-container"></div>
 
-  <div id="update-info" class="update-info"></div>
+    <div class="controls">
+      <input type="text" id="searchInput" placeholder="Pesquisar município..." oninput="filtrarMunicipios()" />
+      <div class="buttons">
+        <button onclick="compartilharPainel()">📤 Compartilhar</button>
+        <button onclick="exportarMunicipios()">📄 Exportar TXT</button>
+      </div>
+    </div>
+
+    <p id="shareFeedback" class="feedback"></p>
+
+    <div id="municipios" class="municipios"></div>
+
+    <p id="update-info">Atualizado automaticamente na última carga de página.</p>
+  </div>
 
   <script src="script.js"></script>
 </body>
