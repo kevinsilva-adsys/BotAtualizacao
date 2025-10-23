@@ -78,6 +78,7 @@ const municipios = [
     {"id": "mirabela-mg", "name": "Mirabela - MG", "url": "https://mirabela-mg.vivver.com/login"},
     {"id": "moema-mg", "name": "Moema - MG[CRESCER]", "url": "https://moema-mg.crescer.net/login"},
     {"id": "mogimirim-sp", "name": "Mogi Mirim - SP", "url": "http://www.mogimirim-sp.vivver.com/login"},
+    {"id": "mogimirim-sp-tst", "name": "Mogi Mirim - SP[TST]", "url": "https://www.mogimirim-sp-tst.vivver.com/login"},
     {"id": "montesantodeminas-mg", "name": "Monte Santo de Minas - MG", "url": "http://www.montesantodeminas-mg.vivver.com/login"},
     {"id": "montesiao-mg", "name": "Monte Sião - MG", "url": "http://www.montesiao-mg.vivver.com/login"},
     {"id": "montesclaros-mg", "name": "Montes Claros - MG", "url": "https://www.montesclaros-mg.vivver.com/login"},
@@ -145,36 +146,328 @@ const municipios = [
     {"id": "tv-4", "name": "TV-4", "url": "https://tv4-fila.vivver.com"}
 ];
 
-// Elementos HTML
+// Container da página
 const container = document.getElementById("municipios");
 const updateInfo = document.getElementById("update-info");
+let resultados = [];
+let todosMunicipios = [];
 
-// Cria um botão de município simples (sem status)
-function criarBotaoMunicipio(municipio) {
+// Função para criar botão com link
+function criarBotaoMunicipio(municipio, status, versao = null) {
   const button = document.createElement("button");
-  button.className = "municipio-btn";
-  button.innerHTML = `<span class="municipio-name">${municipio.name}</span>`;
-  button.onclick = () => window.open(municipio.url, "_blank");
-  button.title = municipio.url;
+  button.className = `municipio-btn ${status ? 'ok' : 'erro'}`;
+  
+  let versaoHtml = '';
+  if (versao) {
+    versaoHtml = `<span class="municipio-version">${versao}</span>`;
+  }
+  
+  button.innerHTML = `
+    <span class="municipio-name">${municipio.name}</span>
+    ${versaoHtml}
+    <span class="municipio-status">${status ? 'Online' : 'Offline'}</span>
+  `;
+  
+  button.onclick = () => {
+    window.open(municipio.url, '_blank');
+  };
+  
+  button.title = `${municipio.url} - ${status ? 'Acessível' : 'Inacessível'}${versao ? ` - Versão: ${versao}` : ''}`;
+  
   return button;
 }
 
-// Renderiza todos os municípios
-function renderizarMunicipios(lista) {
-  container.innerHTML = "";
-  lista.forEach(m => container.appendChild(criarBotaoMunicipio(m)));
+// Função para extrair a versão do HTML
+function extrairVersao(html) {
+  try {
+    // Criar um parser de HTML
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // Procurar o elemento que contém a versão
+    const versaoElement = doc.querySelector('.vmx-login-versao');
+    if (versaoElement) {
+      // Extrair o texto e limpar
+      const texto = versaoElement.textContent || '';
+      const match = texto.match(/Versão:\s*(v[\d.]+)/i);
+      if (match && match[1]) {
+        return match[1];
+      }
+      
+      // Tentativa alternativa se o padrão for diferente
+      const versaoMatch = texto.match(/v[\d.]+/);
+      if (versaoMatch) {
+        return versaoMatch[0];
+      }
+    }
+    
+    // Tentar encontrar por outros padrões comuns
+    const metaVersao = doc.querySelector('meta[name="version"], meta[name="versao"]');
+    if (metaVersao) {
+      return metaVersao.getAttribute('content');
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Erro ao extrair versão:', error);
+    return null;
+  }
 }
 
-// Filtro de pesquisa
+// Nova função de verificação mais robusta com busca de versão
+async function verificarStatus(municipio) {
+  let versao = null;
+  
+  try {
+    // Tentativa 1: Usando fetch com modo 'cors' para obter HTML completo
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    try {
+      const response = await fetch(municipio.url, {
+        method: 'GET',
+        mode: 'cors',
+        cache: 'no-store',
+        signal: controller.signal,
+        headers: {
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      // Verifica se a resposta é válida (status entre 200-399)
+      if (response.status >= 200 && response.status < 400) {
+        const html = await response.text();
+        versao = extrairVersao(html);
+        return { status: true, versao };
+      }
+      return { status: false, versao: null };
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      // Se falhar com CORS, tentar método alternativo
+    }
+    
+    // Tentativa 2: Usando fetch com modo 'no-cors' mas verificando tipo de erro
+    try {
+      const controller2 = new AbortController();
+      const timeoutId2 = setTimeout(() => controller2.abort(), 8000);
+      
+      const response = await fetch(municipio.url, {
+        method: 'GET',
+        mode: 'no-cors',
+        cache: 'no-store',
+        signal: controller2.signal
+      });
+      
+      clearTimeout(timeoutId2);
+      
+      // No modo 'no-cors', não podemos ler a resposta, mas podemos tentar uma requisição separada para a versão
+      // Tentar buscar apenas a versão com uma requisição específica
+      try {
+        const versaoResponse = await fetch(`${municipio.url}/api/version`, {
+          method: 'GET',
+          mode: 'no-cors',
+          signal: AbortSignal.timeout(3000)
+        }).catch(() => null);
+        
+        // Se não conseguir a versão por API, pelo menos sabemos que o site está online
+        return { status: true, versao: null };
+      } catch {
+        return { status: true, versao: null };
+      }
+    } catch (noCorsError) {
+      // Se falhar também com no-cors, provavelmente está offline
+    }
+    
+    // Tentativa 3: Usando XMLHttpRequest (mais compatível)
+    try {
+      const resultado = await new Promise((resolve) => {
+        const xhr = new XMLHttpRequest();
+        xhr.timeout = 8000;
+        
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 400) {
+            const versao = extrairVersao(xhr.responseText);
+            resolve({ status: true, versao });
+          } else {
+            resolve({ status: false, versao: null });
+          }
+        };
+        
+        xhr.onerror = () => resolve({ status: false, versao: null });
+        xhr.ontimeout = () => resolve({ status: false, versao: null });
+        
+        xhr.open('GET', municipio.url);
+        xhr.send();
+      });
+      
+      return resultado;
+    } catch (xhrError) {
+      return { status: false, versao: null };
+    }
+    
+  } catch (error) {
+    console.error(`Erro ao verificar ${municipio.name}:`, error);
+    return { status: false, versao: null };
+  }
+}
+
+// Função para verificar status com múltiplas tentativas
+async function verificarStatusComTentativas(municipio, tentativas = 2) {
+  for (let i = 0; i < tentativas; i++) {
+    const resultado = await verificarStatus(municipio);
+    if (resultado.status) return resultado;
+    
+    // Aguardar um pouco antes de tentar novamente
+    if (i < tentativas - 1) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+  return { status: false, versao: null };
+}
+
+// Atualizar painel
+async function atualizarPainel() {
+  console.log('Atualizando painel...');
+  
+  container.innerHTML = '<div class="loading">Carregando...</div>';
+  
+  // Verificar status de todos os municípios em paralelo, mas com limitação de concorrência
+  const statusPromises = [];
+  const concorrenciaMaxima = 5;
+  
+  for (let i = 0; i < municipios.length; i += concorrenciaMaxima) {
+    const lote = municipios.slice(i, i + concorrenciaMaxima);
+    const promisesLote = lote.map(async (municipio) => {
+      const resultado = await verificarStatusComTentativas(municipio);
+      return { municipio, status: resultado.status, versao: resultado.versao };
+    });
+    
+    const resultadosLote = await Promise.allSettled(promisesLote);
+    
+    resultadosLote.forEach(resultado => {
+      if (resultado.status === 'fulfilled') {
+        statusPromises.push(resultado.value);
+      } else {
+        console.error('Erro ao verificar município:', resultado.reason);
+        statusPromises.push({ 
+          municipio: resultado.reason.municipio || {name: 'Desconhecido'}, 
+          status: false,
+          versao: null
+        });
+      }
+    });
+    
+    // Atualizar interface parcialmente a cada lote
+    resultados = [...statusPromises];
+    todosMunicipios = [...resultados];
+    resultados.sort((a, b) => a.status === b.status ? 0 : a.status ? 1 : -1);
+    renderizarMunicipios();
+    
+    // Pequena pausa entre lotes para não sobrecarregar
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  
+  atualizarInfoTempo();
+}
+
+// Renderizar municípios na tela
+function renderizarMunicipios() {
+  container.innerHTML = '';
+  
+  resultados.forEach(({ municipio, status, versao }) => {
+    const botao = criarBotaoMunicipio(municipio, status, versao);
+    container.appendChild(botao);
+  });
+}
+
+// Filtrar municípios pela barra de pesquisa
 function filtrarMunicipios() {
-  const termo = document.getElementById("searchInput").value.toLowerCase();
-  const filtrados = municipios.filter(m => m.name.toLowerCase().includes(termo));
-  renderizarMunicipios(filtrados);
+  const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+  
+  if (!searchTerm) {
+    resultados = [...todosMunicipios];
+  } else {
+    resultados = todosMunicipios.filter(({ municipio }) => 
+      municipio.name.toLowerCase().includes(searchTerm)
+    );
+  }
+  
+  // Reordenar após filtrar
+  resultados.sort((a, b) => {
+    if (a.status === b.status) return 0;
+    return a.status ? 1 : -1;
+  });
+  
+  renderizarMunicipios();
 }
 
-// Exportar lista TXT
+// Função para compartilhar link do painel
+function compartilharPainel() {
+  const link = window.location.href;
+  navigator.clipboard.writeText(link)
+    .then(() => {
+      const feedback = document.getElementById('shareFeedback');
+      feedback.textContent = '✓ Link copiado!';
+      feedback.style.color = 'green';
+      
+      setTimeout(() => {
+        feedback.textContent = '';
+      }, 2000);
+    })
+    .catch(err => {
+      console.error('Erro ao copiar link:', err);
+      alert('Erro ao copiar link. Tente manualmente: ' + window.location.href);
+    });
+}
+
+// Informação de atualização
+function atualizarInfoTempo() {
+  const agora = new Date();
+  const proxima = new Date(agora.getTime() + 5 * 60 * 1000);
+  
+  updateInfo.innerHTML = `
+    <div>Última atualização: <strong>${agora.toLocaleTimeString()}</strong></div>
+    <div>Próxima atualização: <strong>${proxima.toLocaleTimeString()}</strong></div>
+    <div>Atualização automática a cada 5 minutos</div>
+  `;
+}
+
+// Inicializar e configurar intervalo
+function iniciarPainel() {
+  atualizarPainel();
+  setInterval(atualizarPainel, 5 * 60 * 1000); // 5 minutos
+  
+  // Atualizar contador a cada minuto
+  setInterval(atualizarInfoTempo, 60000);
+}
+
+// Iniciar quando carregar
+document.addEventListener('DOMContentLoaded', iniciarPainel);
+
+// Também iniciar se já estiver carregado
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', iniciarPainel);
+} else {
+  iniciarPainel();
+}
+
+// Função para exportar lista de municípios e versões em TXT
 function exportarMunicipios() {
-  const conteudo = municipios.map(m => `${m.name} - ${m.url}`).join("\n");
+  if (!todosMunicipios.length) {
+    alert("Aguarde o carregamento do painel.");
+    return;
+  }
+
+  let conteudo = "Lista de Municípios - " + new Date().toLocaleString() + "\n\n";
+  todosMunicipios.forEach(({ municipio, versao }) => {
+    conteudo += `${municipio.name}\n`;
+    conteudo += `Versão: ${versao ? versao : "Não localizada"}\n\n`;
+  });
+
   const blob = new Blob([conteudo], { type: "text/plain;charset=utf-8" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
@@ -182,25 +475,3 @@ function exportarMunicipios() {
   link.click();
 }
 
-// Compartilhar painel
-function compartilharPainel() {
-  const shareData = {
-    title: "Painel de Municípios",
-    text: "Confira o Painel de Municípios:",
-    url: window.location.href
-  };
-
-  const feedback = document.getElementById("shareFeedback");
-
-  if (navigator.share) {
-    navigator.share(shareData)
-      .then(() => feedback.textContent = "✅ Painel compartilhado com sucesso!")
-      .catch(() => feedback.textContent = "❌ Falha ao compartilhar.");
-  } else {
-    navigator.clipboard.writeText(window.location.href);
-    feedback.textContent = "🔗 Link copiado para a área de transferência!";
-  }
-}
-
-// Inicializa a página
-renderizarMunicipios(municipios);
