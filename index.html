@@ -1,30 +1,129 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Painel de Municípios</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Municípios</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f5f7fb;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 {
+    text-align: center;
+    color: #333;
+  }
+  #municipios {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+  }
+  .municipio {
+    padding: 10px 15px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background-color: #007bff;
+    color: white;
+    font-weight: bold;
+    transition: transform 0.2s ease, background-color 0.3s ease;
+  }
+  .municipio:hover {
+    transform: scale(1.05);
+    background-color: #0056b3;
+  }
+  .offline {
+    background-color: #6c757d;
+  }
+  .versao {
+    font-size: 0.85em;
+    color: #fff;
+    opacity: 0.8;
+    margin-left: 5px;
+  }
+</style>
 </head>
 <body>
-  <div class="container">
-    <h1>Painel de Municípios</h1>
+  <h1>Painel de Municípios</h1>
+  <div id="municipios"></div>
 
-    <div class="controls">
-      <input type="text" id="searchInput" placeholder="Pesquisar município..." oninput="filtrarMunicipios()" />
-      <div class="buttons">
-        <button onclick="compartilharPainel()">📤 Compartilhar</button>
-        <button onclick="exportarMunicipios()">📄 Exportar TXT</button>
-      </div>
-    </div>
+  <script>
+    // 🔹 Lista de municípios e URLs
+    const municipios = [
+      { name: "Juiz de Fora - MG", url: "https://jf.saude.com.br" },
+      { name: "São Luís - MA", url: "https://slz.saude.com.br" },
+      { name: "Belo Horizonte - MG", url: "https://bh.saude.com.br" }
+    ];
 
-    <p id="shareFeedback" class="feedback"></p>
+    const container = document.getElementById("municipios");
 
-    <div id="municipios" class="municipios"></div>
+    // 🔹 Extrai versão do HTML, se disponível
+    function extrairVersao(html) {
+      const match = html.match(/Versão\s*v?(\d+\.\d+\.\d+)/i);
+      return match ? match[1] : null;
+    }
 
-    <p id="update-info">Atualizado automaticamente na última carga de página.</p>
-  </div>
+    // 🔹 Função modificada: todos os municípios aparecem
+    async function verificarStatus(municipio) {
+      let versao = null;
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-  <script src="script.js"></script>
+        const response = await fetch(municipio.url, {
+          method: 'GET',
+          mode: 'no-cors',
+          cache: 'no-store',
+          signal: controller.signal
+        }).catch(() => null);
+
+        clearTimeout(timeoutId);
+
+        if (response && response.ok) {
+          try {
+            const html = await response.text();
+            versao = extrairVersao(html);
+          } catch {}
+        }
+
+        // 🔹 Sempre retorna como “visível” (status = true)
+        return { status: true, versao: versao || null };
+
+      } catch (error) {
+        console.error(`Erro ao verificar ${municipio.name}:`, error);
+        return { status: true, versao: null }; // 🔹 Também visível mesmo com erro
+      }
+    }
+
+    // 🔹 Cria botão do município
+    function criarBotao(municipio, status, versao) {
+      const botao = document.createElement("button");
+      botao.className = `municipio ${status ? '' : 'offline'}`;
+      botao.textContent = municipio.name;
+
+      if (versao) {
+        const spanVersao = document.createElement("span");
+        spanVersao.className = "versao";
+        spanVersao.textContent = `v${versao}`;
+        botao.appendChild(spanVersao);
+      }
+
+      botao.onclick = () => window.open(municipio.url, "_blank");
+      container.appendChild(botao);
+    }
+
+    // 🔹 Carrega todos os municípios
+    async function carregarMunicipios() {
+      for (const municipio of municipios) {
+        const { status, versao } = await verificarStatus(municipio);
+        criarBotao(municipio, status, versao);
+      }
+    }
+
+    carregarMunicipios();
+  </script>
 </body>
 </html>
