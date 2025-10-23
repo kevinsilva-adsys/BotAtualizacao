@@ -474,4 +474,3 @@ function exportarMunicipios() {
   link.download = "municipios.txt";
   link.click();
 }
-
