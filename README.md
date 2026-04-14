@@ -17,13 +17,12 @@ Padronização das comunicações para facilitar interpretação
 Destaque de informações críticas ou específicas
 
 Exemplo de notificação:
-
-*26/03/2026*
+26/03/2026
 Agenda de Atualizações:
 
-*Versão Homologada:* `v26.02.04.06 — PEC 5.4.31`
+Versão Homologada: v26.02.04.06 — PEC 5.4.31
 -
-*Atualizações 11:00:*
+Atualizações 11:00:
 [Ponto dos Volantes - MG] Atualização Chamado#1010678 - v26.03.02.06
 [Manhuaçu - MG] Atualização Chamado#1010722 - v26.03.02.06
 [Almenara - MG] Atualização Chamado#1010723 - v26.03.02.06
@@ -35,7 +34,7 @@ Agenda de Atualizações:
 [Pirapora - MG] Atualização Chamado#1010743 - v26.03.02.06
 [Buritizeiro] Atualização Chamado#1010748 - v26.03.02.06
 -
-*Atualizações 17:00:*
+Atualizações 17:00:
 [Itauna - MG] Atualização Chamado#1010727 - v26.03.02.06
 [Arcos - MG] Atualização Chamado#1010730 - v26.03.02.06
 [Divinopolis - MG] Atualização Chamado#1010731 - v26.03.02.06
@@ -47,7 +46,7 @@ Agenda de Atualizações:
 [Botucatu - SP] Atualização Chamado#1010739 - v26.03.02.06
 [Jequié - BA] Atualização Chamado#1010740 - v26.02.03.06
 -
-*Atualizações 19:00:*
-*_[Volta Redonda - RJ] Atualização Chamado#1010725 26.03.02.06*_
+Atualizações 19:00:
+[Volta Redonda - RJ] Atualização Chamado#1010725 26.03.02.06
 
 A solução otimiza o acompanhamento das atualizações, reduz riscos operacionais e melhora a sincronização entre as equipes envolvidas no processo.
