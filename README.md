@@ -17,6 +17,7 @@ Padronização das comunicações para facilitar interpretação
 Destaque de informações críticas ou específicas
 
 Exemplo de notificação:
+
 *26/03/2026*
 Agenda de Atualizações:
 
